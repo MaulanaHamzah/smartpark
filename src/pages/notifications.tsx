@@ -2,35 +2,31 @@ import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import { getIronSession } from "iron-session";
 import { sessionOptions } from "@/lib/session";
-import { getDummyParkingData } from "@/lib/data";
-import type { SessionData, ParkingData } from "@/types";
+import type { SessionData } from "@/types";
 import UserLayout from "@/components/layout/UserLayout";
-import DashboardView from "@/views/user/DashboardView";
+import NotificationsView from "@/views/user/NotificationsView";
 
 export const getServerSideProps: GetServerSideProps = async ({ req, res }) => {
   const session = await getIronSession<SessionData>(req, res, sessionOptions);
   if (!session.isLoggedIn || !session.user) {
     return { redirect: { destination: "/login", permanent: false } };
   }
-  // Redirect admin ke halaman admin
   if (session.user.role === "admin") {
-    return { redirect: { destination: "/admin/dashboard", permanent: false } };
+    return { redirect: { destination: "/admin/notifications", permanent: false } };
   }
-  const initialData = getDummyParkingData();
-  return { props: { user: session.user, initialData } };
+  return { props: { user: session.user } };
 };
 
 interface Props {
   user: { username: string; role: string };
-  initialData: ParkingData;
 }
 
-export default function DashboardPage({ user, initialData }: Props) {
+export default function NotificationsPage({ user }: Props) {
   return (
     <>
-      <Head><title>SmartPark — Dashboard</title></Head>
+      <Head><title>SmartPark — Notifications</title></Head>
       <UserLayout username={user.username} role={user.role}>
-        <DashboardView data={initialData} />
+        <NotificationsView username={user.username} />
       </UserLayout>
     </>
   );
