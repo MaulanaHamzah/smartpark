@@ -10,23 +10,14 @@ interface Props {
 export default function Navbar({ username, role, onToggleSidebar, isSidebarOpen }: Props) {
   return (
     <nav style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      height: "60px",
-      background: "white",
+      position: "fixed", top: 0, left: 0, right: 0,
+      height: "60px", background: "white",
       borderBottom: "1px solid var(--border)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "0 1.5rem",
-      boxShadow: "var(--shadow-sm)",
-      zIndex: 100,
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "0 1.5rem", boxShadow: "var(--shadow-sm)", zIndex: 100,
     }}>
       {/* Kiri: toggle + brand */}
       <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-        {/* Toggle button */}
         <button
           onClick={onToggleSidebar}
           style={{
@@ -35,8 +26,7 @@ export default function Navbar({ username, role, onToggleSidebar, isSidebarOpen 
             alignItems: "center", justifyContent: "center",
             gap: "5px", background: "transparent",
             border: "1.5px solid var(--border)",
-            borderRadius: "8px", cursor: "pointer",
-            transition: "all 0.2s",
+            borderRadius: "8px", cursor: "pointer", transition: "all 0.2s",
           }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLButtonElement).style.borderColor = "#2563eb";
@@ -52,7 +42,6 @@ export default function Navbar({ username, role, onToggleSidebar, isSidebarOpen 
           <span style={{ width: "16px", height: "2px", background: isSidebarOpen ? "#2563eb" : "var(--text-secondary)", borderRadius: "2px", transition: "all 0.2s" }}/>
         </button>
 
-        {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <div style={{
             width: "34px", height: "34px",
