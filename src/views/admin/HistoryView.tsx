@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { subscribeHistory } from "@/lib/historyService";
+import { subscribeParkingRecords, type ParkingRecord } from "@/lib/historyService";
 import { db } from "@/lib/firebase";
 import { ref, remove } from "firebase/database";
-import type { CarRecord } from "@/pages/dashboard";
 
 function formatTime(iso?: string) {
   if (!iso) return "—";
@@ -12,11 +11,10 @@ function formatTime(iso?: string) {
   });
 }
 
-function StatusBadge({ status }: { status: CarRecord["status"] }) {
-  const styles: Record<string, { bg: string; color: string; label: string }> = {
-    entering: { bg: "#fffbeb", color: "#d97706", label: "Waiting" },
-    parked:   { bg: "#eff6ff", color: "#2563eb", label: "Parked"  },
-    exited:   { bg: "#f0fdf4", color: "#16a34a", label: "Exited"  },
+function StatusBadge({ status }: { status: ParkingRecord["status"] }) {
+  const styles = {
+    parked: { bg: "#eff6ff", color: "#2563eb", label: "Parked" },
+    exited: { bg: "#f0fdf4", color: "#16a34a", label: "Exited" },
   };
   const s = styles[status];
   return (
@@ -33,11 +31,28 @@ function StatusBadge({ status }: { status: CarRecord["status"] }) {
   );
 }
 
+function GateBadge({ gate }: { gate: string }) {
+  const isA = gate === "Gate A";
+  return (
+    <span style={{
+      padding: "0.2rem 0.65rem",
+      background: isA ? "#fffbeb" : "#f5f3ff",
+      color: isA ? "#d97706" : "#7c3aed",
+      borderRadius: "99px", fontSize: "0.72rem",
+      fontWeight: "700", letterSpacing: "0.06em",
+      border: `1px solid ${isA ? "#fde68a" : "#ddd6fe"}`,
+    }}>
+      {gate}
+    </span>
+  );
+}
+
 export default function HistoryView() {
-  const [records, setRecords] = useState<(CarRecord & { firebaseKey: string })[]>([]);
+  const [records, setRecords] = useState<(ParkingRecord & { firebaseKey: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "entering" | "parked" | "exited">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "parked" | "exited">("all");
+  const [filterGate, setFilterGate] = useState<"all" | "Gate A" | "Gate B">("all");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,37 +65,30 @@ export default function HistoryView() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    const unsubscribe = subscribeHistory(data => {
-      const sorted = [...data].sort((a, b) =>
-        new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime()
-      );
-      setRecords(sorted);
+    const unsubscribe = subscribeParkingRecords(data => {
+      setRecords(data);
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Reset page saat filter/search berubah
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterStatus, rowsPerPage]);
+  }, [search, filterStatus, filterGate, rowsPerPage]);
 
   const filtered = records.filter(r => {
-    const matchSearch =
-      r.id.toLowerCase().includes(search.toLowerCase()) ||
-      r.colorName.toLowerCase().includes(search.toLowerCase()) ||
-      (r.slotId ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchSearch = r.slotId.toLowerCase().includes(search.toLowerCase()) ||
+      r.gate.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === "all" || r.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchGate   = filterGate === "all" || r.gate === filterGate;
+    return matchSearch && matchStatus && matchGate;
   });
 
-  // Pagination logic
   const totalPages = Math.ceil(filtered.length / rowsPerPage);
-  const paginated = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const paginated  = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
-  const totalEntered = records.length;
-  const totalParked  = records.filter(r => r.status === "parked").length;
-  const totalExited  = records.filter(r => r.status === "exited").length;
+  const totalParked = records.filter(r => r.status === "parked").length;
+  const totalExited = records.filter(r => r.status === "exited").length;
 
   function showSuccessMsg(msg: string) {
     setSuccess(msg);
@@ -90,17 +98,15 @@ export default function HistoryView() {
   async function handleDelete() {
     setDeleting(true);
     try {
-      // Data diurutkan terbaru di atas, jadi yang terlama ada di akhir array
       const sortedOldest = [...records].sort((a, b) =>
         new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime()
       );
-
       const toDelete = deleteCount === "all"
         ? sortedOldest
         : sortedOldest.slice(0, deleteCount as number);
 
       for (const record of toDelete) {
-        await remove(ref(db, `history/${record.firebaseKey}`));
+        await remove(ref(db, `parkingRecords/${record.firebaseKey}`));
       }
 
       setShowDeleteModal(false);
@@ -126,7 +132,7 @@ export default function HistoryView() {
           Data History
         </h1>
         <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-          All vehicle entry and exit records
+          All vehicle parking records
         </p>
       </div>
 
@@ -146,9 +152,9 @@ export default function HistoryView() {
         gap: "1rem", marginBottom: "1.75rem",
       }}>
         {[
-          { label: "Total Entered",    value: totalEntered, color: "#0f172a" },
-          { label: "Currently Parked", value: totalParked,  color: "#2563eb" },
-          { label: "Total Exited",     value: totalExited,  color: "#16a34a" },
+          { label: "Total Records",    value: records.length, color: "#0f172a" },
+          { label: "Currently Parked", value: totalParked,    color: "#2563eb" },
+          { label: "Total Exited",     value: totalExited,    color: "#16a34a" },
         ].map(stat => (
           <div key={stat.label} style={{
             background: "white", border: "1px solid var(--border)",
@@ -168,7 +174,7 @@ export default function HistoryView() {
         ))}
       </div>
 
-      {/* Toolbar: search + filter + delete + rows per page */}
+      {/* Toolbar */}
       <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.25rem", flexWrap: "wrap", alignItems: "center" }}>
 
         {/* Search */}
@@ -182,7 +188,7 @@ export default function HistoryView() {
           </svg>
           <input
             type="text"
-            placeholder="Search by car ID, color, or slot..."
+            placeholder="Search by slot or gate..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{
@@ -198,7 +204,7 @@ export default function HistoryView() {
 
         {/* Filter status */}
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          {(["all", "entering", "parked", "exited"] as const).map(s => (
+          {(["all", "parked", "exited"] as const).map(s => (
             <button
               key={s}
               onClick={() => setFilterStatus(s)}
@@ -212,7 +218,28 @@ export default function HistoryView() {
                 transition: "all 0.2s",
               }}
             >
-              {s === "all" ? "All" : s === "entering" ? "Waiting" : s === "parked" ? "Parked" : "Exited"}
+              {s === "all" ? "All" : s === "parked" ? "Parked" : "Exited"}
+            </button>
+          ))}
+        </div>
+
+        {/* Filter gate */}
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {(["all", "Gate A", "Gate B"] as const).map(g => (
+            <button
+              key={g}
+              onClick={() => setFilterGate(g)}
+              style={{
+                padding: "0.65rem 0.85rem", borderRadius: "8px",
+                fontSize: "0.78rem", fontWeight: "600",
+                cursor: "pointer",
+                border: `1.5px solid ${filterGate === g ? "#d97706" : "var(--border)"}`,
+                background: filterGate === g ? "#fffbeb" : "white",
+                color: filterGate === g ? "#d97706" : "var(--text-secondary)",
+                transition: "all 0.2s",
+              }}
+            >
+              {g === "all" ? "All Gates" : g}
             </button>
           ))}
         </div>
@@ -287,13 +314,13 @@ export default function HistoryView() {
               <polyline points="14 2 14 8 20 8"/>
             </svg>
             <p style={{ fontWeight: "600", marginBottom: "0.25rem" }}>No records found</p>
-            <p style={{ fontSize: "0.82rem" }}>Try adjusting your search or filter</p>
+            <p style={{ fontSize: "0.82rem" }}>Records will appear when IoT is connected</p>
           </div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--border)" }}>
-                {["No", "Car ID", "Color", "Slot", "Entry Time", "Exit Time", "Status"].map(h => (
+                {["No", "Slot", "Gate", "Entry Time", "Exit Time", "Status"].map(h => (
                   <th key={h} style={{
                     padding: "0.85rem 1.25rem", textAlign: "left",
                     fontSize: "0.72rem", fontWeight: "700",
@@ -318,29 +345,15 @@ export default function HistoryView() {
                     {(currentPage - 1) * rowsPerPage + index + 1}
                   </td>
                   <td style={{ padding: "1rem 1.25rem" }}>
-                    <span style={{ fontFamily: "var(--font-mono)", fontWeight: "700", fontSize: "0.85rem" }}>
-                      {record.id}
-                    </span>
-                  </td>
-                  <td style={{ padding: "1rem 1.25rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <span style={{
-                        width: "14px", height: "14px", borderRadius: "50%",
-                        background: record.color, flexShrink: 0,
-                        boxShadow: `0 0 0 2px white, 0 0 0 3px ${record.color}55`,
-                      }}/>
-                      <span style={{ fontSize: "0.82rem", color: "var(--text-primary)", textTransform: "capitalize" }}>
-                        {record.colorName}
-                      </span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "1rem 1.25rem" }}>
                     <span style={{
-                      fontFamily: "var(--font-mono)", fontSize: "0.82rem",
-                      fontWeight: "700", color: record.slotId ? "#2563eb" : "var(--text-muted)",
+                      fontFamily: "var(--font-mono)", fontWeight: "700",
+                      fontSize: "0.88rem", color: "#2563eb",
                     }}>
-                      {record.slotId ?? "—"}
+                      {record.slotId}
                     </span>
+                  </td>
+                  <td style={{ padding: "1rem 1.25rem" }}>
+                    <GateBadge gate={record.gate} />
                   </td>
                   <td style={{ padding: "1rem 1.25rem", fontSize: "0.82rem", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
                     {formatTime(record.entryTime)}
@@ -381,11 +394,8 @@ export default function HistoryView() {
                 cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
               }}
-            >
-              ← Prev
-            </button>
+            >← Prev</button>
 
-            {/* Page numbers */}
             <div style={{ display: "flex", gap: "0.25rem" }}>
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
@@ -418,7 +428,7 @@ export default function HistoryView() {
 
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages || totalPages === 0}
               style={{
                 padding: "0.5rem 1rem",
                 border: "1.5px solid var(--border)", borderRadius: "8px",
@@ -428,9 +438,7 @@ export default function HistoryView() {
                 cursor: currentPage === totalPages ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
               }}
-            >
-              Next →
-            </button>
+            >Next →</button>
           </div>
         </div>
       )}
@@ -469,7 +477,6 @@ export default function HistoryView() {
               Select how many oldest records to delete
             </p>
 
-            {/* Pilihan hapus */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem", marginBottom: "1rem" }}>
               {([5, 10, 20, 50, 100, "all"] as const).map(n => (
                 <button
@@ -489,7 +496,6 @@ export default function HistoryView() {
               ))}
             </div>
 
-            {/* Warning */}
             <div style={{
               padding: "0.65rem 1rem", background: "#fffbeb",
               border: "1px solid #fde68a", borderRadius: "8px",

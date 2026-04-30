@@ -2,6 +2,14 @@ import { db } from "./firebase";
 import { ref, push, update, onValue, off } from "firebase/database";
 import type { CarRecord } from "@/pages/dashboard";
 
+export interface ParkingRecord {
+  slotId: string;
+  gate: "Gate A" | "Gate B";
+  entryTime: string;
+  exitTime?: string;
+  status: "parked" | "exited";
+}
+
 export function saveCarEntry(car: CarRecord) {
   const historyRef = ref(db, "history");
   return push(historyRef, {
@@ -91,4 +99,52 @@ export async function markAllNotificationsRead(username: string) {
     updates[`${key}/isRead`] = true;
   });
   return update(notifRef, updates);
+}
+
+// ─── Parking Records (baru) ───────────────────────
+export function saveParkingRecord(data: Omit<ParkingRecord, "exitTime">) {
+  const recordsRef = ref(db, "parkingRecords");
+  return push(recordsRef, {
+    ...data,
+    exitTime: null,
+  });
+}
+
+export async function updateParkingRecord(firebaseKey: string, data: Partial<ParkingRecord>) {
+  const recordRef = ref(db, `parkingRecords/${firebaseKey}`);
+  return update(recordRef, data);
+}
+
+export function subscribeParkingRecords(
+  callback: (records: (ParkingRecord & { firebaseKey: string })[]) => void
+) {
+  const recordsRef = ref(db, "parkingRecords");
+  onValue(recordsRef, snapshot => {
+    const data = snapshot.val();
+    if (!data) { callback([]); return; }
+    const records = Object.entries(data).map(([key, val]) => ({
+      ...(val as ParkingRecord),
+      firebaseKey: key,
+    }));
+    records.sort((a, b) =>
+      new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime()
+    );
+    callback(records);
+  });
+  return () => off(recordsRef);
+}
+
+// ─── Gates ───────────────────────────────────────
+export function subscribeGates(
+  callback: (gates: { gateA: string; gateB: string }) => void
+) {
+  const gatesRef = ref(db, "gates");
+  onValue(gatesRef, snapshot => {
+    const data = snapshot.val();
+    callback({
+      gateA: data?.gateA?.status ?? "open",
+      gateB: data?.gateB?.status ?? "closed",
+    });
+  });
+  return () => off(ref(db, "gates"));
 }

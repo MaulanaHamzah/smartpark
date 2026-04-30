@@ -11,8 +11,6 @@ export function getDummyParkingData(): ParkingData {
         slots: [
           { id: "A1", status: "available" },
           { id: "A2", status: "available" },
-          { id: "A3", status: "available" },
-          { id: "A4", status: "available" },
         ],
       },
       {
@@ -21,8 +19,6 @@ export function getDummyParkingData(): ParkingData {
         slots: [
           { id: "B1", status: "available" },
           { id: "B2", status: "available" },
-          { id: "B3", status: "available" },
-          { id: "B4", status: "available" },
         ],
       },
     ],

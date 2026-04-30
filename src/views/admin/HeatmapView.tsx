@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { subscribeHistory } from "@/lib/historyService";
-import type { CarRecord } from "@/pages/dashboard";
+import { subscribeParkingRecords, type ParkingRecord } from "@/lib/historyService";
 import { getDummyParkingData } from "@/lib/data";
 
 function getHeatColor(count: number, max: number): { bg: string; border: string; label: string } {
@@ -22,12 +21,12 @@ function getHeatTextColor(count: number, max: number): string {
 }
 
 export default function HeatmapView() {
-  const [records, setRecords] = useState<(CarRecord & { firebaseKey: string })[]>([]);
+  const [records, setRecords] = useState<(ParkingRecord & { firebaseKey: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const areas = getDummyParkingData().areas;
 
   useEffect(() => {
-    const unsubscribe = subscribeHistory(data => {
+    const unsubscribe = subscribeParkingRecords(data => {
       setRecords(data);
       setLoading(false);
     });
@@ -47,13 +46,12 @@ export default function HeatmapView() {
     }
   });
 
-  const maxCount = Math.max(...Object.values(slotCount), 1);
+  const maxCount  = Math.max(...Object.values(slotCount), 1);
   const totalUsage = Object.values(slotCount).reduce((a, b) => a + b, 0);
 
-  // Slot paling sering & paling jarang
   const sortedSlots = Object.entries(slotCount).sort((a, b) => b[1] - a[1]);
-  const mostUsed   = sortedSlots[0];
-  const leastUsed  = sortedSlots[sortedSlots.length - 1];
+  const mostUsed    = sortedSlots[0];
+  const leastUsed   = sortedSlots[sortedSlots.length - 1];
 
   return (
     <div style={{ animation: "fadeUp 0.4s ease both" }}>
@@ -87,9 +85,9 @@ export default function HeatmapView() {
             gap: "1rem", marginBottom: "2rem",
           }}>
             {[
-              { label: "Total Usage",     value: totalUsage,             color: "#0f172a", unit: "times" },
-              { label: "Most Used Slot",  value: mostUsed?.[0] ?? "—",   color: "#dc2626", unit: `${mostUsed?.[1] ?? 0}x` },
-              { label: "Least Used Slot", value: leastUsed?.[0] ?? "—",  color: "#16a34a", unit: `${leastUsed?.[1] ?? 0}x` },
+              { label: "Total Usage",     value: totalUsage,            color: "#0f172a", unit: "times" },
+              { label: "Most Used Slot",  value: mostUsed?.[0] ?? "—",  color: "#dc2626", unit: `${mostUsed?.[1] ?? 0}x` },
+              { label: "Least Used Slot", value: leastUsed?.[0] ?? "—", color: "#16a34a", unit: `${leastUsed?.[1] ?? 0}x` },
             ].map(stat => (
               <div key={stat.label} style={{
                 background: "white", border: "1px solid var(--border)",
@@ -139,7 +137,7 @@ export default function HeatmapView() {
           </div>
 
           {/* Heatmap grid */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
             {areas.map((area, aIdx) => (
               <div key={area.id} style={{
                 background: "white", border: "1px solid var(--border)",
@@ -156,20 +154,20 @@ export default function HeatmapView() {
                     {area.name}
                   </h2>
                   <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                    Total usage:{" "}
+                    Total:{" "}
                     <span style={{ fontWeight: "600", color: "var(--text-primary)" }}>
                       {area.slots.reduce((s, slot) => s + (slotCount[slot.id] ?? 0), 0)}x
                     </span>
                   </span>
                 </div>
 
-                {/* Slots */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
+                {/* 2 slot per area */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                   {area.slots.map(slot => {
-                    const count = slotCount[slot.id] ?? 0;
-                    const heat  = getHeatColor(count, maxCount);
+                    const count     = slotCount[slot.id] ?? 0;
+                    const heat      = getHeatColor(count, maxCount);
                     const textColor = getHeatTextColor(count, maxCount);
-                    const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+                    const pct       = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
 
                     return (
                       <div
@@ -178,7 +176,7 @@ export default function HeatmapView() {
                           borderRadius: "12px",
                           border: `2px solid ${heat.border}`,
                           background: heat.bg,
-                          padding: "1rem 0.75rem",
+                          padding: "1.25rem 1rem",
                           display: "flex", flexDirection: "column",
                           alignItems: "center", gap: "0.5rem",
                           transition: "all 0.2s",
@@ -186,13 +184,13 @@ export default function HeatmapView() {
                       >
                         {/* Slot ID */}
                         <span style={{
-                          fontFamily: "var(--font-mono)", fontSize: "0.85rem",
+                          fontFamily: "var(--font-mono)", fontSize: "0.95rem",
                           fontWeight: "700", color: textColor,
                         }}>
                           {slot.id}
                         </span>
 
-                        {/* Flame icon - makin merah makin besar */}
+                        {/* Flame icon */}
                         <svg
                           width={24 + Math.round(pct / 10)}
                           height={24 + Math.round(pct / 10)}
@@ -203,7 +201,7 @@ export default function HeatmapView() {
 
                         {/* Count */}
                         <span style={{
-                          fontFamily: "var(--font-mono)", fontSize: "1.4rem",
+                          fontFamily: "var(--font-mono)", fontSize: "1.6rem",
                           fontWeight: "700", color: textColor, lineHeight: 1,
                         }}>
                           {count}x
@@ -211,7 +209,7 @@ export default function HeatmapView() {
 
                         {/* Label */}
                         <span style={{
-                          fontSize: "0.62rem", fontWeight: "600",
+                          fontSize: "0.65rem", fontWeight: "600",
                           textTransform: "uppercase", letterSpacing: "0.08em",
                           color: textColor, opacity: 0.8,
                         }}>
@@ -220,21 +218,20 @@ export default function HeatmapView() {
 
                         {/* Progress bar */}
                         <div style={{
-                          width: "100%", height: "4px",
-                          background: "rgba(0,0,0,0.08)", borderRadius: "2px",
+                          width: "100%", height: "5px",
+                          background: "rgba(0,0,0,0.08)", borderRadius: "3px",
                           overflow: "hidden",
                         }}>
                           <div style={{
-                            height: "100%", borderRadius: "2px",
-                            background: textColor,
-                            width: `${pct}%`,
+                            height: "100%", borderRadius: "3px",
+                            background: textColor, width: `${pct}%`,
                             transition: "width 0.5s ease",
                           }}/>
                         </div>
 
                         {/* Percentage */}
                         <span style={{
-                          fontSize: "0.65rem", color: textColor,
+                          fontSize: "0.68rem", color: textColor,
                           fontWeight: "500", opacity: 0.7,
                         }}>
                           {pct}% of max
@@ -254,7 +251,7 @@ export default function HeatmapView() {
               background: "#fffbeb", border: "1px solid #fde68a",
               borderRadius: "12px", fontSize: "0.82rem", color: "#d97706",
             }}>
-              ⚠ No parking history yet — heatmap will update automatically when vehicles are parked.
+              ⚠ No parking history yet — heatmap will update automatically when IoT is connected.
             </div>
           )}
         </>
