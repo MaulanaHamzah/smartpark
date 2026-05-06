@@ -148,3 +148,21 @@ export function subscribeGates(
   });
   return () => off(ref(db, "gates"));
 }
+
+// ─── Slots (Real-time dari Firebase) ─────────────
+export interface SlotData {
+  id_sensor: string;
+  terisi: boolean;
+  timestamp: string;
+}
+
+export function subscribeSlots(
+  callback: (slots: Record<string, SlotData>) => void
+) {
+  const slotsRef = ref(db, "slots");
+  onValue(slotsRef, snapshot => {
+    const data = snapshot.val();
+    callback(data ?? {});
+  });
+  return () => off(ref(db, "slots"));
+}

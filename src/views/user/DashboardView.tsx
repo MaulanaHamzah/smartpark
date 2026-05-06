@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ParkingData } from "@/types";
-import { subscribeGates } from "@/lib/historyService";
-
-interface Props {
-  data: ParkingData;
-}
+import { subscribeGates, subscribeSlots, type SlotData } from "@/lib/historyService";
 
 function GateIndicator({ name, status }: { name: string; status: string }) {
   const isOpen = status === "open";
@@ -88,20 +84,49 @@ function GateIndicator({ name, status }: { name: string; status: string }) {
   );
 }
 
-export default function DashboardView({ data }: Props) {
+export default function DashboardView() {
   const [gates, setGates] = useState({ gateA: "open", gateB: "closed" });
-  const [parkingData, setParkingData] = useState(data);
+  const [parkingData, setParkingData] = useState<ParkingData>({
+    systemStatus: "online",
+    lastUpdated: "",
+    areas: [
+      { id: "A", name: "Area A", slots: [{ id: "A1", status: "available" }, { id: "A2", status: "available" }] },
+      { id: "B", name: "Area B", slots: [{ id: "B1", status: "available" }, { id: "B2", status: "available" }] },
+    ],
+  });
 
+  // Hapus kedua useEffect yang lama, ganti dengan ini:
   useEffect(() => {
-    const unsubscribe = subscribeGates(g => setGates(g));
-    return () => unsubscribe();
+    const unsubGates = subscribeGates(g => setGates(g));
+
+    const unsubSlots = subscribeSlots((slots: Record<string, SlotData>) => {
+      setParkingData({
+        systemStatus: "online",
+        lastUpdated: new Date().toISOString(),
+        areas: [
+          {
+            id: "A", name: "Area A",
+            slots: [
+              { id: "A1", status: slots["A1"]?.terisi ? "occupied" : "available" },
+              { id: "A2", status: slots["A2"]?.terisi ? "occupied" : "available" },
+            ],
+          },
+          {
+            id: "B", name: "Area B",
+            slots: [
+              { id: "B1", status: slots["B1"]?.terisi ? "occupied" : "available" },
+              { id: "B2", status: slots["B2"]?.terisi ? "occupied" : "available" },
+            ],
+          },
+        ],
+      });
+    });
+
+    return () => {
+      unsubGates();
+      unsubSlots();
+    };
   }, []);
-
-  // Listen perubahan slot dari Firebase nanti
-  // Untuk sekarang pakai data dari props
-  useEffect(() => {
-    setParkingData(data);
-  }, [data]);
 
   const totalSlots = parkingData.areas.reduce((s, a) => s + a.slots.length, 0);
   const occupied   = parkingData.areas.reduce((s, a) => s + a.slots.filter(sl => sl.status === "occupied").length, 0);
