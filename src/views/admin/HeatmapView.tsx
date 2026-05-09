@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
-import { subscribeParkingRecords, type ParkingRecord } from "@/lib/historyService";
-import { getDummyParkingData } from "@/lib/data";
+import { subscribeParkingRecords, subscribeSlots, type ParkingRecord, type SlotData } from "@/lib/historyService";
+
+const SLOT_IDS = ["A1", "A2", "B1", "B2"];
+const AREAS = [
+  { id: "A", name: "Area A", slots: ["A1", "A2"] },
+  { id: "B", name: "Area B", slots: ["B1", "B2"] },
+];
 
 function getHeatColor(count: number, max: number): { bg: string; border: string; label: string } {
   if (max === 0 || count === 0) return { bg: "#f0fdf4", border: "#86efac", label: "Never" };
@@ -22,31 +27,33 @@ function getHeatTextColor(count: number, max: number): string {
 
 export default function HeatmapView() {
   const [records, setRecords] = useState<(ParkingRecord & { firebaseKey: string })[]>([]);
+  const [slots, setSlots] = useState<Record<string, SlotData>>({});
   const [loading, setLoading] = useState(true);
-  const areas = getDummyParkingData().areas;
 
   useEffect(() => {
-    const unsubscribe = subscribeParkingRecords(data => {
+    const unsubRecords = subscribeParkingRecords(data => {
       setRecords(data);
       setLoading(false);
     });
-    return () => unsubscribe();
+    const unsubSlots = subscribeSlots(data => {
+      setSlots(data);
+    });
+    return () => {
+      unsubRecords();
+      unsubSlots();
+    };
   }, []);
 
-  // Hitung frekuensi per slot
+  // Hitung frekuensi per slot dari history
   const slotCount: Record<string, number> = {};
-  areas.forEach(area => {
-    area.slots.forEach(slot => {
-      slotCount[slot.id] = 0;
-    });
-  });
+  SLOT_IDS.forEach(id => { slotCount[id] = 0; });
   records.forEach(r => {
     if (r.slotId && slotCount[r.slotId] !== undefined) {
       slotCount[r.slotId]++;
     }
   });
 
-  const maxCount  = Math.max(...Object.values(slotCount), 1);
+  const maxCount   = Math.max(...Object.values(slotCount), 1);
   const totalUsage = Object.values(slotCount).reduce((a, b) => a + b, 0);
 
   const sortedSlots = Object.entries(slotCount).sort((a, b) => b[1] - a[1]);
@@ -138,7 +145,7 @@ export default function HeatmapView() {
 
           {/* Heatmap grid */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-            {areas.map((area, aIdx) => (
+            {AREAS.map((area, aIdx) => (
               <div key={area.id} style={{
                 background: "white", border: "1px solid var(--border)",
                 borderRadius: "16px", padding: "1.5rem",
@@ -156,22 +163,23 @@ export default function HeatmapView() {
                   <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
                     Total:{" "}
                     <span style={{ fontWeight: "600", color: "var(--text-primary)" }}>
-                      {area.slots.reduce((s, slot) => s + (slotCount[slot.id] ?? 0), 0)}x
+                      {area.slots.reduce((s, id) => s + (slotCount[id] ?? 0), 0)}x
                     </span>
                   </span>
                 </div>
 
                 {/* 2 slot per area */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                  {area.slots.map(slot => {
-                    const count     = slotCount[slot.id] ?? 0;
-                    const heat      = getHeatColor(count, maxCount);
-                    const textColor = getHeatTextColor(count, maxCount);
-                    const pct       = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+                  {area.slots.map(slotId => {
+                    const count      = slotCount[slotId] ?? 0;
+                    const heat       = getHeatColor(count, maxCount);
+                    const textColor  = getHeatTextColor(count, maxCount);
+                    const pct        = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+                    const isOccupied = slots[slotId]?.terisi ?? false;
 
                     return (
                       <div
-                        key={slot.id}
+                        key={slotId}
                         style={{
                           borderRadius: "12px",
                           border: `2px solid ${heat.border}`,
@@ -179,15 +187,26 @@ export default function HeatmapView() {
                           padding: "1.25rem 1rem",
                           display: "flex", flexDirection: "column",
                           alignItems: "center", gap: "0.5rem",
-                          transition: "all 0.2s",
+                          transition: "all 0.2s", position: "relative",
                         }}
                       >
+                        {/* Real-time status dot */}
+                        <span style={{
+                          position: "absolute", top: "8px", right: "8px",
+                          width: "8px", height: "8px", borderRadius: "50%",
+                          background: isOccupied ? "#dc2626" : "#16a34a",
+                          boxShadow: isOccupied
+                            ? "0 0 6px rgba(220,38,38,0.8)"
+                            : "0 0 6px rgba(22,163,74,0.8)",
+                          animation: isOccupied ? "none" : "pulseLed 2s ease-in-out infinite",
+                        }}/>
+
                         {/* Slot ID */}
                         <span style={{
                           fontFamily: "var(--font-mono)", fontSize: "0.95rem",
                           fontWeight: "700", color: textColor,
                         }}>
-                          {slot.id}
+                          {slotId}
                         </span>
 
                         {/* Flame icon */}
@@ -229,13 +248,19 @@ export default function HeatmapView() {
                           }}/>
                         </div>
 
-                        {/* Percentage */}
-                        <span style={{
-                          fontSize: "0.68rem", color: textColor,
-                          fontWeight: "500", opacity: 0.7,
-                        }}>
-                          {pct}% of max
-                        </span>
+                        {/* Percentage + current status */}
+                        <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                          <span style={{ fontSize: "0.65rem", color: textColor, fontWeight: "500", opacity: 0.7 }}>
+                            {pct}% of max
+                          </span>
+                          <span style={{
+                            fontSize: "0.62rem", fontWeight: "700",
+                            color: isOccupied ? "#dc2626" : "#16a34a",
+                            textTransform: "uppercase",
+                          }}>
+                            {isOccupied ? "● Occupied" : "● Free"}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
@@ -259,6 +284,10 @@ export default function HeatmapView() {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulseLed {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.35; }
+        }
       `}</style>
     </div>
   );

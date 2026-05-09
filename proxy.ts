@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/login", "/_next", "/favicon.ico"];
+// Path yang bisa diakses tanpa login
+const PUBLIC_PATHS = [
+  "/",
+  "/dashboard",
+  "/login",
+  "/api/login",
+  "/_next",
+  "/favicon.ico",
+  "/parking-bg.jpeg",
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.some(p => pathname.startsWith(p));
   if (isPublic) return NextResponse.next();
 
+  // Cek session cookie
   const cookie = request.cookies.get("smartpark_session");
-
   if (!cookie?.value) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);

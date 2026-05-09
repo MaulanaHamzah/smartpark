@@ -1,11 +1,14 @@
-import type { GetServerSideProps } from "next";
+import Head from "next/head";
+import LandingView from "@/views/public/LandingView";
 
-export const getServerSideProps: GetServerSideProps = async () => {
-  return {
-    redirect: { destination: "/dashboard", permanent: false },
-  };
-};
-
-export default function Home() {
-  return null;
+export default function HomePage() {
+  return (
+    <>
+      <Head>
+        <title>SmartPark — Sistem Parkir Cerdas</title>
+        <meta name="description" content="Sistem parkir cerdas berbasis IoT dengan monitoring slot parkir secara real-time." />
+      </Head>
+      <LandingView />
+    </>
+  );
 }
