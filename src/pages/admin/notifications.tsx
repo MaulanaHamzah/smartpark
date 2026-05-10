@@ -4,7 +4,7 @@ import { getIronSession } from "iron-session";
 import { sessionOptions } from "@/lib/session";
 import type { SessionData } from "@/types";
 import AdminLayout from "@/components/layout/AdminLayout";
-import NotificationsView from "@/views/user/NotificationsView";
+import NotificationsView from "@/views/admin/NotificationsView";
 
 export const getServerSideProps: GetServerSideProps = async ({ req, res }) => {
   const session = await getIronSession<SessionData>(req, res, sessionOptions);

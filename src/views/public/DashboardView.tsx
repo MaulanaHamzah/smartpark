@@ -138,68 +138,36 @@ export default function PublicDashboardView() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         boxShadow: "var(--shadow-sm)", position: "sticky", top: 0, zIndex: 50,
       }}>
-        {/* Brand — klik untuk ke landing */}
+        {/* Kiri: tombol kembali */}
         <button
           onClick={() => router.push("/")}
           style={{
-            display: "flex", alignItems: "center", gap: "0.6rem",
-            background: "none", border: "none", cursor: "pointer", padding: 0,
-          }}
-        >
-          <div style={{
-            width: "34px", height: "34px",
-            background: "linear-gradient(135deg, #2563eb, #3b82f6)",
-            borderRadius: "10px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <rect x="2" y="8" width="20" height="12" rx="2" fill="white" opacity="0.9"/>
-              <path d="M5 8l2-4h10l2 4" fill="white"/>
-              <circle cx="7" cy="17" r="1.5" fill="#2563eb"/>
-              <circle cx="17" cy="17" r="1.5" fill="#2563eb"/>
-            </svg>
-          </div>
-          <span style={{
-            fontFamily: "var(--font-mono)", fontWeight: "700",
-            fontSize: "1rem", color: "var(--text-primary)",
-          }}>SmartPark</span>
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-
-        {/* Beranda */}
-        <button
-            onClick={() => router.push("/")}
-            style={{
-            display: "flex", alignItems: "center", gap: "0.35rem",
+            display: "flex", alignItems: "center", gap: "0.4rem",
             background: "none", border: "1.5px solid var(--border)",
-            borderRadius: "8px", padding: "0.4rem 0.85rem",
-            fontSize: "0.78rem", fontWeight: "600",
+            borderRadius: "8px", padding: "0.45rem 1rem",
+            fontSize: "0.82rem", fontWeight: "600",
             color: "var(--text-secondary)", cursor: "pointer",
             transition: "all 0.2s",
-            }}
-            onMouseEnter={e => {
+          }}
+          onMouseEnter={e => {
             (e.currentTarget as HTMLButtonElement).style.borderColor = "#2563eb";
             (e.currentTarget as HTMLButtonElement).style.color = "#2563eb";
-            }}
-            onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = "#eff6ff";
+          }}
+          onMouseLeave={e => {
             (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
             (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)";
-            }}
+            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+          }}
         >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-            Beranda
+          </svg>
+          Beranda
         </button>
 
-          {/* Last updated */}
-          {lastUpdated && (
-            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              Updated: {lastUpdated}
-            </span>
-          )}
-
+        {/* Kanan: system status + admin login */}
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           {/* System status */}
           <div style={{
             display: "flex", alignItems: "center", gap: "0.4rem",

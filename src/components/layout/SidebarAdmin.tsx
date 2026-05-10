@@ -146,11 +146,17 @@ export default function SidebarAdmin({ isOpen, username }: Props) {
                   {item.icon}
                   {item.hasBadge && unreadCount > 0 && (
                     <span style={{
-                      position: "absolute", top: "-5px", right: "-6px",
-                      width: "8px", height: "8px",
-                      background: "#dc2626", borderRadius: "50%",
+                      position: "absolute", top: "-6px", right: "-8px",
+                      minWidth: "16px", height: "16px",
+                      background: "#dc2626", borderRadius: "99px",
                       border: "1.5px solid white",
-                    }}/>
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      padding: "0 3px",
+                      fontSize: "0.6rem", fontWeight: "700",
+                      color: "white", lineHeight: 1,
+                    }}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
                   )}
                 </span>
 

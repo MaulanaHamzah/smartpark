@@ -300,12 +300,8 @@ async function getAllUsernames(): Promise<string[]> {
     onValue(usersRef, snapshot => {
       const data = snapshot.val();
       if (!data) { resolve([]); return; }
-      const usernames = Object.entries(data)
-        .filter(([, val]) => {
-          const v = val as Record<string, Record<string, string>>;
-          return v.account?.role === "user";
-        })
-        .map(([key]) => key);
+      // Kirim notifikasi ke semua user termasuk admin
+      const usernames = Object.keys(data);
       resolve(usernames);
     }, { onlyOnce: true });
   });
@@ -342,58 +338,63 @@ export function syncSlotsAndNotify() {
       }, { onlyOnce: true });
     });
 
-    // Ambil semua username user
+    // Ambil semua username admin
     const usernames = await getAllUsernames();
 
     // Cek status penuh
     const totalOccupied = Object.values(slotMap).filter(Boolean).length;
     const isFull        = totalOccupied === 4;
 
+    // Waktu sekarang
+    const now     = new Date();
+    const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const dateStr = now.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+
     for (const slotId of ["A1", "A2", "B1", "B2"]) {
       const wasOccupied = prevSlots[slotId];
       const isOccupied  = slotMap[slotId];
+      const area        = slotId.startsWith("A") ? "A" : "B";
+      const gate        = slotId.startsWith("A") ? "Gate A" : "Gate B";
 
-      // Slot baru terisi
+      // Slot baru terisi — kendaraan masuk
       if (!wasOccupied && isOccupied) {
-        const gate = slotId.startsWith("A") ? "Gate A" : "Gate B";
-
         // Simpan ke parkingRecords
         const result = await saveParkingRecord({
           slotId,
           gate: gate as "Gate A" | "Gate B",
-          entryTime: new Date().toISOString(),
+          entryTime: now.toISOString(),
           status: "parked",
         });
         if (result?.key) activeKeys[slotId] = result.key;
 
-        // Kirim notifikasi ke semua user
+        // Kirim notifikasi detail ke semua admin
         for (const username of usernames) {
           await pushNotification(
             username,
-            `Slot ${slotId} is now occupied (${gate})`,
+            `🚗 Vehicle entered and parked at Area ${area} Slot ${slotId} at ${timeStr} on ${dateStr}`,
             "occupied",
             slotId
           );
         }
       }
 
-      // Slot yang tadinya terisi, sekarang kosong
+      // Slot yang tadinya terisi, sekarang kosong — kendaraan keluar
       if (wasOccupied && !isOccupied) {
         // Update parkingRecords
         const key = activeKeys[slotId];
         if (key) {
           await updateParkingRecord(key, {
-            exitTime: new Date().toISOString(),
+            exitTime: now.toISOString(),
             status: "exited",
           });
           delete activeKeys[slotId];
         }
 
-        // Kirim notifikasi ke semua user
+        // Kirim notifikasi detail ke semua admin
         for (const username of usernames) {
           await pushNotification(
             username,
-            `Slot ${slotId} is now available`,
+            `Vehicle exited from Area ${area} Slot ${slotId} at ${timeStr} on ${dateStr}`,
             "available",
             slotId
           );
@@ -408,7 +409,7 @@ export function syncSlotsAndNotify() {
       for (const username of usernames) {
         await pushNotification(
           username,
-          "Parking lot is FULL — All slots occupied!",
+          `⚠ Parking lot is FULL! All slots occupied at ${timeStr} on ${dateStr}`,
           "full"
         );
       }
@@ -419,7 +420,7 @@ export function syncSlotsAndNotify() {
       for (const username of usernames) {
         await pushNotification(
           username,
-          "Parking lot has available slots again",
+          `ℹ Parking slots available again at ${timeStr} on ${dateStr}`,
           "available_again"
         );
       }
@@ -429,4 +430,32 @@ export function syncSlotsAndNotify() {
   });
 
   return () => off(slotsRef);
+}
+
+// ─── Gate Records ─────────────────────────────────
+export interface GateRecord {
+  gate: "Gate Masuk" | "Gate Keluar";
+  gateOpen: string;
+  gateClose: string;
+}
+
+export function subscribeGateRecords(
+  callback: (records: (GateRecord & { firebaseKey: string })[]) => void
+) {
+  const gateRecordsRef = ref(db, "gateRecords");
+  onValue(gateRecordsRef, snapshot => {
+    const data = snapshot.val();
+    if (!data) { callback([]); return; }
+    const records = Object.entries(data)
+      .filter(([key]) => key !== "example")
+      .map(([key, val]) => ({
+        ...(val as GateRecord),
+        firebaseKey: key,
+      }));
+    records.sort((a, b) =>
+      new Date(b.gateOpen).getTime() - new Date(a.gateOpen).getTime()
+    );
+    callback(records);
+  });
+  return () => off(ref(db, "gateRecords"));
 }
