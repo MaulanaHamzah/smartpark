@@ -163,7 +163,7 @@ export default function PublicDashboardView() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
-          Beranda
+          Home
         </button>
 
         {/* Kanan: system status + admin login */}
@@ -230,7 +230,7 @@ export default function PublicDashboardView() {
             Parking Monitor
           </h1>
           <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-            Status slot parkir secara real-time
+            Parking slot status in real time
           </p>
         </div>
 
@@ -284,8 +284,8 @@ export default function PublicDashboardView() {
           gap: "1rem", marginBottom: "2rem",
           animation: "fadeUp 0.5s ease 0.1s both",
         }}>
-          <GateIndicator name="Palang Masuk" status={gates.gateA} />
-          <GateIndicator name="Palang Keluar" status={gates.gateB} />
+          <GateIndicator name="Entry Gate" status={gates.gateA} />
+          <GateIndicator name="Exit Gate" status={gates.gateB} />
         </div>
 
         {/* Area parkir */}

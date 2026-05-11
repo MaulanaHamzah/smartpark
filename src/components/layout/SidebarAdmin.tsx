@@ -58,6 +58,7 @@ const menuItems = [
 export default function SidebarAdmin({ isOpen, username }: Props) {
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeNotifications(username, notifs => {
@@ -67,8 +68,10 @@ export default function SidebarAdmin({ isOpen, username }: Props) {
   }, [username]);
 
   async function handleLogout() {
-    const confirmed = window.confirm("Are you sure you want to logout?");
-    if (!confirmed) return;
+    setShowLogoutModal(true);
+  }
+
+  async function confirmLogout() {
     await fetch("/api/logout", { method: "POST" });
     await router.push("/login");
   }
@@ -199,6 +202,93 @@ export default function SidebarAdmin({ isOpen, username }: Props) {
           </button>
         </div>
       </aside>
+      {/* Logout Modal */}
+      {showLogoutModal && (
+        <div style={{
+          position: "fixed", inset: 0,
+          width: "100vw", height: "100vh",
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 200, animation: "fadeIn 0.2s ease",
+        }}>
+          <div style={{
+            background: "white", borderRadius: "20px",
+            padding: "2rem", width: "360px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+            animation: "fadeUp 0.25s ease",
+            textAlign: "center",
+          }}>
+            {/* Icon */}
+            <div style={{
+              width: "60px", height: "60px", borderRadius: "50%",
+              background: "#fef2f2", border: "2px solid #fca5a5",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 1.25rem",
+            }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              fontSize: "1.1rem", fontWeight: "700",
+              color: "var(--text-primary)", marginBottom: "0.5rem",
+            }}>
+              Logout
+            </h3>
+
+            <p style={{
+              fontSize: "0.85rem", color: "var(--text-secondary)",
+              lineHeight: 1.6, marginBottom: "1.75rem",
+            }}>
+              Are you sure you want to logout from SmartPark admin panel?
+            </p>
+
+            {/* Buttons */}
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                style={{
+                  flex: 1, padding: "0.75rem",
+                  background: "white",
+                  border: "1.5px solid var(--border)",
+                  borderRadius: "10px", fontSize: "0.88rem",
+                  fontWeight: "600", color: "var(--text-secondary)",
+                  cursor: "pointer", transition: "all 0.2s",
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "#94a3b8";
+                  (e.currentTarget as HTMLButtonElement).style.background = "#f8fafc";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
+                  (e.currentTarget as HTMLButtonElement).style.background = "white";
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLogout}
+                style={{
+                  flex: 1, padding: "0.75rem",
+                  background: "#dc2626", border: "none",
+                  borderRadius: "10px", fontSize: "0.88rem",
+                  fontWeight: "600", color: "white",
+                  cursor: "pointer", transition: "opacity 0.2s",
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = "0.85"}
+                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = "1"}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
